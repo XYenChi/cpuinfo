@@ -665,6 +665,14 @@ void cpuinfo_riscv_linux_init(void) {
 	cpuinfo_packages = packages;
 	cpuinfo_packages_count = valid_packages_count;
 	cpuinfo_uarchs = uarchs;
+	cpuinfo_cache[cpuinfo_cache_level_1i] = l1i;
+	cpuinfo_cache[cpuinfo_cache_level_1d] = l1d;
+	cpuinfo_cache[cpuinfo_cache_level_2] = l2;
+
+	cpuinfo_cache_count[cpuinfo_cache_level_1i] = l1_count;
+	cpuinfo_cache_count[cpuinfo_cache_level_1d] = l1_count;
+	cpuinfo_cache_count[cpuinfo_cache_level_2] = l2_count;
+
 	cpuinfo_uarchs_count = valid_uarchs_count;
 
 	cpuinfo_linux_cpu_max = max_processor_id;
