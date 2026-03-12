@@ -44,6 +44,19 @@ static bool cache_size_parser(const char* filename, const char* text_start, cons
 	return true;
 }
 
+/* Check if /sys/devices/system/cpu/cpuN/cache/index2/shared_cpu_list indicates a single CPU (per-core cache) */
+static bool shared_cpu_list_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
+	bool* is_per_core = (bool*)context;
+	for (const char* p = text_start; p < text_end; p++) {
+		if (*p == ',' || *p == '-') {
+			*is_per_core = false;
+			return true;
+		}
+	}
+	*is_per_core = (text_start != text_end);
+	return *is_per_core;
+}
+
 /* Read cache size for a given cache level from sysfs (RISC-V) */
 static uint32_t cpuinfo_linux_read_sysfs_cache_size(uint32_t cpu_id, uint32_t cache_level) {
 	char path[256];
