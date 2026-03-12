@@ -4,6 +4,108 @@
 #include <cpuinfo/log.h>
 #include <linux/api.h>
 #include <riscv/linux/api.h>
+#include <stdio.h>
+
+/* Parse a uint32 from sysfs file content */
+static bool uint32_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
+	uint32_t* value_ptr = (uint32_t*)context;
+	if (text_start == text_end) {
+		return false;
+	}
+	uint32_t value = 0;
+	for (const char* p = text_start; p < text_end && *p >= '0' && *p <= '9'; p++) {
+		value = value * 10 + (*p - '0');
+	}
+	*value_ptr = value;
+	return value > 0;
+}
+
+/* Parse cache size with K/M suffix from /sys/devices/system/cpu/cpuN/cache/indexN/size (e.g. "2048K", "1M") */
+static bool cache_size_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
+	uint32_t* size_ptr = (uint32_t*)context;
+	if (text_start == text_end) {
+		return false;
+	}
+	uint32_t value = 0;
+	const char* p = text_start;
+	while (p < text_end && *p >= '0' && *p <= '9') {
+		value = value * 10 + (*p - '0');
+		p++;
+	}
+	if (p == text_start || value == 0) {
+		return false;
+	}
+	uint32_t multiplier = 1024;
+	if (p < text_end && toupper(*p) == 'M') {
+		multiplier = 1024 * 1024;
+	}
+	*size_ptr = value * multiplier;
+	return true;
+}
+
+/* Read cache size for a given cache level from sysfs (RISC-V) */
+static uint32_t cpuinfo_linux_riscv_read_cache_size(uint32_t cpu_id, uint32_t cache_level) {
+    char path[256];
+
+    for (uint32_t index = 0; index < MAX_CACHE_INDEX; index++) {
+        uint32_t actual_level = 0;
+
+        /* read cache level */
+        snprintf(path, sizeof(path),
+            "/sys/devices/system/cpu/cpu%u/cache/index%u/level",
+            cpu_id, index);
+
+        if (!cpuinfo_linux_parse_small_file(path, 16, uint32_parser, &actual_level)) {
+            continue;
+        }
+
+        if (actual_level != cache_level) {
+            continue;
+        }
+
+        /* read cache size */
+        uint32_t size = 0;
+
+        snprintf(path, sizeof(path),
+            "/sys/devices/system/cpu/cpu%u/cache/index%u/size",
+            cpu_id, index);
+
+        if (!cpuinfo_linux_parse_small_file(path, 32, cache_size_parser, &size)) {
+            return 0;
+        }
+
+        return size;
+    }
+
+    return 0;
+}
+
+static uint32_t cpuinfo_linux_read_sysfs_cache_size(uint32_t cpu_id, uint32_t cache_level) {
+	char path[256];
+
+	/* Verify the index corresponds to the requested cache level */
+	snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%u/cache/index%u/level", cpu_id, cache_level);
+	uint32_t actual_level = 0;
+	if (!cpuinfo_linux_parse_small_file(path, 16, uint32_parser, &actual_level) || actual_level != cache_level) {
+		return 0;
+	}
+
+	snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%u/cache/index%u/size", cpu_id, cache_level);
+	uint32_t size = 0;
+	if (!cpuinfo_linux_parse_small_file(path, 32, cache_size_parser, &size)) {
+		return 0;
+	}
+	return size;
+}
+
+/* Check if L2 cache is per-core by reading sysfs shared_cpu_list */
+static bool cpuinfo_linux_is_l2_per_core(uint32_t cpu_id) {
+	char path[256];
+	snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%u/cache/index2/shared_cpu_list", cpu_id);
+	bool is_per_core = false;
+	cpuinfo_linux_parse_small_file(path, 128, shared_cpu_list_parser, &is_per_core);
+	return is_per_core;
+}
 
 /* ISA structure to hold supported extensions. */
 struct cpuinfo_riscv_isa cpuinfo_isa;
