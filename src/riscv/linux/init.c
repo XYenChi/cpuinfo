@@ -5,6 +5,7 @@
 #include <linux/api.h>
 #include <riscv/linux/api.h>
 #include <stdio.h>
+#include <ctype.h>
 
 /* Parse a uint32 from sysfs file content */
 static bool uint32_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
