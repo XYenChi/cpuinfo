@@ -45,42 +45,6 @@ static bool cache_size_parser(const char* filename, const char* text_start, cons
 }
 
 /* Read cache size for a given cache level from sysfs (RISC-V) */
-static uint32_t cpuinfo_linux_riscv_read_cache_size(uint32_t cpu_id, uint32_t cache_level) {
-    char path[256];
-
-    for (uint32_t index = 0; index < MAX_CACHE_INDEX; index++) {
-        uint32_t actual_level = 0;
-
-        /* read cache level */
-        snprintf(path, sizeof(path),
-            "/sys/devices/system/cpu/cpu%u/cache/index%u/level",
-            cpu_id, index);
-
-        if (!cpuinfo_linux_parse_small_file(path, 16, uint32_parser, &actual_level)) {
-            continue;
-        }
-
-        if (actual_level != cache_level) {
-            continue;
-        }
-
-        /* read cache size */
-        uint32_t size = 0;
-
-        snprintf(path, sizeof(path),
-            "/sys/devices/system/cpu/cpu%u/cache/index%u/size",
-            cpu_id, index);
-
-        if (!cpuinfo_linux_parse_small_file(path, 32, cache_size_parser, &size)) {
-            return 0;
-        }
-
-        return size;
-    }
-
-    return 0;
-}
-
 static uint32_t cpuinfo_linux_read_sysfs_cache_size(uint32_t cpu_id, uint32_t cache_level) {
 	char path[256];
 
